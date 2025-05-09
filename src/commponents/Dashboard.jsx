@@ -21,7 +21,6 @@ export default function Dashboard() {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       },
-      credentials: 'include',
     });
 
     if (res.ok) {
@@ -52,7 +51,6 @@ export default function Dashboard() {
       headers: {
         Authorization: `Bearer ${token}`,
       },
-      credentials: 'include',
     });
 
     if (res.ok) {
@@ -71,7 +69,7 @@ export default function Dashboard() {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       },
-      credentials: 'include',
+
       body: JSON.stringify({ content }),
     });
 
@@ -90,7 +88,7 @@ export default function Dashboard() {
       headers: {
         Authorization: `Bearer ${token}`,
       },
-      credentials: 'include',
+
     });
 
     if (res.ok) {
@@ -113,7 +111,7 @@ export default function Dashboard() {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       },
-      credentials: 'include',
+
       body: JSON.stringify({ content }),
     });
 
