@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import Cookies from 'js-cookie';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import PostForm from './PostForm';
+import { toast } from 'react-toastify';
 
 export default function Dashboard() {
   const [posts, setPosts] = useState([]);
@@ -10,6 +11,7 @@ export default function Dashboard() {
   const [editingContent, setEditingContent] = useState('');
   const [searchId, setSearchId] = useState('');
   const [searchResult, setSearchResult] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const navigate = useNavigate();
 
@@ -36,6 +38,23 @@ export default function Dashboard() {
     } else {
       Cookies.remove('token');
       navigate('/sign-in');
+    }
+  };
+
+  const likePost = async (postId) => {
+    const token = Cookies.get('token');
+    const res = await fetch(`https://reschoolexpres.vercel.app/posts/${postId}/like`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (res.ok) {
+      fetchPosts(); 
+      toast.success('Liked the post!');
+    } else {
+      toast.error('Failed to like post.');
     }
   };
 
@@ -69,15 +88,15 @@ export default function Dashboard() {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       },
-
       body: JSON.stringify({ content }),
     });
 
     if (res.ok) {
       fetchPosts();
+      toast.success('Post added successfully');
     } else {
       const error = await res.json();
-      alert(error.message || 'Error adding post');
+      toast.error(error.message || 'Error adding post');
     }
   };
 
@@ -88,13 +107,13 @@ export default function Dashboard() {
       headers: {
         Authorization: `Bearer ${token}`,
       },
-
     });
 
     if (res.ok) {
       fetchPosts();
+      toast.success('Post deleted successfully');
     } else {
-      alert('You can only delete your post.');
+      toast.error('You can only delete your post.');
     }
   };
 
@@ -111,7 +130,6 @@ export default function Dashboard() {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       },
-
       body: JSON.stringify({ content }),
     });
 
@@ -119,8 +137,9 @@ export default function Dashboard() {
       setEditingPost(null);
       setEditingContent('');
       fetchPosts();
+      toast.success('Post updated successfully');
     } else {
-      alert('Error updating post');
+      toast.error('Error updating post');
     }
   };
 
@@ -130,101 +149,148 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
+    const token = Cookies.get('token');
+    if (token) {
+      const decodedToken = JSON.parse(atob(token.split('.')[1]));
+      setIsAdmin(decodedToken.role === 'admin');
+    }
     fetchPosts();
   }, []);
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold ml-[250px]">Dashboard</h2>
-        <div className="flex justify-between items-center mb-4">
-          <button onClick={logout} className="bg-red-500 text-white px-4 py-2">
+    <div className="min-h-screen bg-gray-100 p-8">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-800">Dashboard</h2>
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={logout}
+            className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition"
+          >
             Logout
           </button>
-          {posts[0]?.author && (
-            <p className="text-gray-700 ml-[50px] flex mr-[300px]">
-              <strong>Email:</strong> {posts[0].author.email}
-            </p>
-          )}
+          <Link to="/profile" className="text-blue-600 hover:underline">
+            Profile
+          </Link>
         </div>
       </div>
 
-      <div className="mb-4 ml-[250px]">
-        <input
-          type="text"
-          placeholder="Search by Post ID"
-          value={searchId}
-          onChange={(e) => setSearchId(e.target.value)}
-          className="border px-2 py-1 mr-2"
-        />
-        <button
-          onClick={searchPostById}
-          className="bg-blue-500 text-white px-4 py-1"
-        >
-          Search
-        </button>
+      <div className="flex justify-center mb-6">
+        <div className="flex items-center space-x-4">
+          <input
+            type="text"
+            placeholder="Search by Post ID"
+            value={searchId}
+            onChange={(e) => setSearchId(e.target.value)}
+            className="border border-gray-300 p-2 rounded-md w-72 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button
+            onClick={searchPostById}
+            className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition"
+          >
+            Search
+          </button>
+        </div>
       </div>
 
       <PostForm onAdd={addPost} />
 
       {searchResult && (
-        <div className="border ml-[250px] mr-[250px] p-4 rounded-[10px] mt-4 bg-yellow-50">
-          <h3 className="font-bold mb-2">Search Result</h3>
+        <div className="bg-yellow-50 p-4 rounded-lg mb-6">
+          <h3 className="font-semibold mb-2 text-lg">Search Result</h3>
           {searchResult.notFound ? (
-            <p className="text-red-500">არაფერი მოიძებნა</p>
+            <p className="text-red-500">No post found</p>
           ) : (
-            <>
-              <p><strong>ID:</strong> {searchResult._id}</p>
-              <p><strong>Content:</strong> {searchResult.content}</p>
-              <p><strong>Author Email:</strong> {searchResult.author?.email}</p>
-              <p><strong>Created At:</strong> {new Date(searchResult.createdAt).toLocaleString()}</p>
-            </>
+            <div>
+              <p>
+                <strong>ID:</strong> {searchResult._id}
+              </p>
+              <p>
+                <strong>Content:</strong> {searchResult.content}
+              </p>
+              <p>
+                <strong>Author Email:</strong> {searchResult.author?.email}
+              </p>
+              <p>
+                <strong>Created At:</strong>{' '}
+                {new Date(searchResult.createdAt).toLocaleString()}
+              </p>
+            </div>
           )}
         </div>
       )}
-
-      <ul className="flex ml-[200px] mr-[200px] flex-wrap">
+      <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {Array.isArray(posts) && posts.length > 0 ? (
           posts.map((post) => (
-            <li key={post._id} className="border ml-[50px] w-[400px] p-[20px] rounded-[10px] mt-[20px]">
+            <li
+              key={post._id}
+              className="group bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition relative"
+            >
               <div>
-                <p><strong>ID:</strong> {post._id}</p>
-                <p><strong>Content:</strong></p>
+                <p>
+                  <strong>ID:</strong> {post._id}
+                </p>
+                <p>
+                  <strong>Content:</strong>
+                </p>
                 {editingPost && editingPost._id === post._id ? (
                   <>
                     <input
                       type="text"
-                      className="border p-1 w-full"
+                      className="border p-2 w-full mt-2"
                       value={editingContent}
                       onChange={(e) => setEditingContent(e.target.value)}
                     />
-                    <button
-                      onClick={() => updatePost(post._id, editingContent)}
-                      className="text-green-500 mt-2 mr-2"
-                    >
-                      Save
-                    </button>
-                    <button
-                      onClick={() => setEditingPost(null)}
-                      className="text-gray-500 mt-2"
-                    >
-                      Cancel
-                    </button>
+                    <div className="flex justify-end space-x-4 mt-2">
+                      <button
+                        onClick={() => updatePost(post._id, editingContent)}
+                        className="text-green-600 hover:underline"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => setEditingPost(null)}
+                        className="text-gray-500 hover:underline"
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </>
                 ) : (
                   <p>{post.content}</p>
                 )}
-                <p><strong>Author Email:</strong> {post.author.email}</p>
-                <p><strong>Created At:</strong> {new Date(post.createdAt).toLocaleString()}</p>
-                <button onClick={() => deletePost(post._id)} className="text-red-500 mt-2">Delete</button>
-                {post.author._id === userId && (
-                  <button onClick={() => editPost(post)} className="text-blue-500 ml-2 mt-2">Edit</button>
+                <p>
+                  <strong>Author Email:</strong> {post.author.email}
+                </p>
+                <p>
+                  <strong>Created At:</strong>{' '}
+                  {new Date(post.createdAt).toLocaleString()}
+                </p>
+
+                <div className="flex items-center space-x-3 mt-4">
+                  <span  onClick={() => likePost(post._id)}>{post.likes ? post.likes.length : 0} Likes</span>
+                </div>
+
+                {(post.author._id === userId || isAdmin) && (
+                  <div className="flex space-x-4 mt-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <button
+                      onClick={() => deletePost(post._id)}
+                      className="text-white w-[100px] h-[40px] bg-red-500 rounded-[20px] hover:bg-red-600"
+                    >
+                      X
+                    </button>
+                    <button
+                      onClick={() => editPost(post)}
+                      className="text-white w-[100px] h-[40px] bg-blue-500 rounded-[20px] hover:bg-blue-600 hover:underline"
+                    >
+                      Edit
+                    </button>
+                  </div>
                 )}
               </div>
             </li>
           ))
         ) : (
-          <li>No posts available.</li>
+          <li className="text-center text-gray-500">No posts available.</li>
         )}
       </ul>
     </div>
