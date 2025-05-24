@@ -8,6 +8,7 @@ import Dashboard from './commponents/Dashboard';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import YourProfile from './commponents/YourProfile';
+import Admin from './commponents/Admin';
 
 function App() {
   return (
@@ -34,7 +35,14 @@ function App() {
             </ProtectedRoute>
           }
         />
-
+         <Route
+          path="/admin"
+          element={
+            <ProtectedRoute>
+              <Admin />
+            </ProtectedRoute>
+          }
+          />
       </Routes>
     </Router>
   );

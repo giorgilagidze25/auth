@@ -32,7 +32,7 @@ const handleSubmit = async (e) => {
     }
 
     const data = await res.json();
-    Cookies.set('token', data, {
+    Cookies.set('token', data.token, {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'Strict',
       expires: 7,

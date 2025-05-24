@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { toast } from 'react-toastify';
-export default function PostForm({ onAdd }) {
+
+function PostForm({ onAdd }) {
   const [text, setText] = useState('');
+  const [image, setImage] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -14,8 +16,9 @@ export default function PostForm({ onAdd }) {
     const loadingToast = toast.loading('Adding post...');
 
     try {
-      await onAdd(text);
+      await onAdd(text, image);
       setText('');
+      setImage(null);
       toast.update(loadingToast, {
         render: 'Post added!',
         type: 'success',
@@ -33,15 +36,25 @@ export default function PostForm({ onAdd }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="my-4 space-x-2">
+    <form onSubmit={handleSubmit} className="my-4 space-y-4 flex flex-col items-center">
       <input
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder="Write post"
-        className="border w-[300px] p-2 ml-[250px]"
+        className="border w-[300px] p-2"
         required
       />
-      <button type="submit" className="bg-green-500 text-white px-4 py-2">Add Post</button>
+      <input
+        type="file"
+        accept="image/*"
+        onChange={(e) => setImage(e.target.files[0])}
+        className="w-[300px]"
+      />
+      <button type="submit" className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition">
+        Add Post
+      </button>
     </form>
   );
 }
+
+export default PostForm;
