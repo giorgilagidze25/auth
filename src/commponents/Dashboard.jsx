@@ -12,7 +12,8 @@ export default function Dashboard() {
   const [searchId, setSearchId] = useState('');
   const [searchResult, setSearchResult] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
-
+  const [user, setUser] = useState(null);
+  
   const navigate = useNavigate();
 
   const fetchPosts = async () => {
@@ -79,26 +80,31 @@ export default function Dashboard() {
       setSearchResult({ notFound: true });
     }
   };
+const addPost = async (content, imageFile) => {
+  const token = Cookies.get('token');
+  const formData = new FormData();
+  formData.append('content', content);
+  if (imageFile) {
+    formData.append('image', imageFile);
+  }
 
-  const addPost = async (content) => {
-    const token = Cookies.get('token');
-    const res = await fetch('https://reschoolexpres.vercel.app/posts', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ content }),
-    });
+  const res = await fetch('https://reschoolexpres.vercel.app/posts', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`, 
+    },
+    body: formData,
+  });
 
-    if (res.ok) {
-      fetchPosts();
-      toast.success('Post added successfully');
-    } else {
-      const error = await res.json();
-      toast.error(error.message || 'Error adding post');
-    }
-  };
+  if (res.ok) {
+    fetchPosts();
+    toast.success('Post added successfully');
+  } else {
+    const error = await res.json();
+    toast.error(error.message || 'Error adding post');
+  }
+};
+
 
   const deletePost = async (id) => {
     const token = Cookies.get('token');
@@ -149,28 +155,66 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    const token = Cookies.get('token');
-    if (token) {
-      const decodedToken = JSON.parse(atob(token.split('.')[1]));
-      setIsAdmin(decodedToken.role === 'admin');
+  const token = Cookies.get('token');
+  if (!token) {
+    navigate('/sign-in');
+    return;
+  }
+
+  const fetchCurrentUser = async () => {
+    try {
+      const res = await fetch('https://reschoolexpres.vercel.app/auth/current-user', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Failed to fetch current user');
+      const data = await res.json();
+      setUser(data);  
+    } catch (error) {
+      console.error(error);
+      Cookies.remove('token');
+      navigate('/sign-in');
     }
-    fetchPosts();
-  }, []);
+  };
+
+  fetchCurrentUser();
+
+  fetchPosts();
+
+  const decodedToken = JSON.parse(atob(token.split('.')[1]));
+  setIsAdmin(decodedToken.role === 'admin');
+}, []);
 
   return (
     <div className="min-h-screen bg-gray-100 p-8">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-gray-800">Dashboard</h2>
         <div className="flex items-center space-x-4">
+           {isAdmin && (
+            <button
+              onClick={() => navigate('/admin')}
+              className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition"
+            >
+              Admin Panel
+            </button>
+          )}
           <button
             onClick={logout}
             className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition"
           >
             Logout
           </button>
-          <Link to="/profile" className="text-blue-600 hover:underline">
-            Profile
-          </Link>
+
+        <div className='w-full flex flex-col p-2'>
+         <Link to="/profile" className="text-blue-600 flex-col flex justify-center items-center ">
+  <img
+    className="rounded-full w-[50px] h-[50px]"
+    src={user?.avatar || 'https://thumbs.dreamstime.com/b/default-avatar-profile-icon-vector-social-media-user-image-182145777.jpg'}
+    alt="User Avatar"
+  />
+  Profile
+</Link>
+
+          </div>  
         </div>
       </div>
 
@@ -218,81 +262,92 @@ export default function Dashboard() {
           )}
         </div>
       )}
-      <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {Array.isArray(posts) && posts.length > 0 ? (
-          posts.map((post) => (
-            <li
-              key={post._id}
-              className="group bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition relative"
-            >
-              <div>
-                <p>
-                  <strong>ID:</strong> {post._id}
-                </p>
-                <p>
-                  <strong>Content:</strong>
-                </p>
-                {editingPost && editingPost._id === post._id ? (
-                  <>
-                    <input
-                      type="text"
-                      className="border p-2 w-full mt-2"
-                      value={editingContent}
-                      onChange={(e) => setEditingContent(e.target.value)}
-                    />
-                    <div className="flex justify-end space-x-4 mt-2">
-                      <button
-                        onClick={() => updatePost(post._id, editingContent)}
-                        className="text-green-600 hover:underline"
-                      >
-                        Save
-                      </button>
-                      <button
-                        onClick={() => setEditingPost(null)}
-                        className="text-gray-500 hover:underline"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <p>{post.content}</p>
-                )}
-                <p>
-                  <strong>Author Email:</strong> {post.author.email}
-                </p>
-                <p>
-                  <strong>Created At:</strong>{' '}
-                  {new Date(post.createdAt).toLocaleString()}
-                </p>
-
-                <div className="flex items-center space-x-3 mt-4">
-                  <span  onClick={() => likePost(post._id)}>{post.likes ? post.likes.length : 0} Likes</span>
-                </div>
-
-                {(post.author._id === userId || isAdmin) && (
-                  <div className="flex space-x-4 mt-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    <button
-                      onClick={() => deletePost(post._id)}
-                      className="text-white w-[100px] h-[40px] bg-red-500 rounded-[20px] hover:bg-red-600"
-                    >
-                      X
-                    </button>
-                    <button
-                      onClick={() => editPost(post)}
-                      className="text-white w-[100px] h-[40px] bg-blue-500 rounded-[20px] hover:bg-blue-600 hover:underline"
-                    >
-                      Edit
-                    </button>
-                  </div>
-                )}
+<ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+  {Array.isArray(posts) && posts.length > 0 ? (
+    posts.map((post) => (
+      <li
+        key={post._id}
+        className="group bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition relative"
+      >
+        <div>
+          <p>
+            <strong>ID:</strong> {post._id}
+          </p>
+          <p>
+            <strong>Content:</strong>
+          </p>
+          {editingPost && editingPost._id === post._id ? (
+            <>
+              <input
+                type="text"
+                className="border p-2 w-full mt-2"
+                value={editingContent}
+                onChange={(e) => setEditingContent(e.target.value)}
+              />
+              <div className="flex justify-end space-x-4 mt-2">
+                <button
+                  onClick={() => updatePost(post._id, editingContent)}
+                  className="text-green-600 hover:underline"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={() => setEditingPost(null)}
+                  className="text-gray-500 hover:underline"
+                >
+                  Cancel
+                </button>
               </div>
-            </li>
-          ))
-        ) : (
-          <li className="text-center text-gray-500">No posts available.</li>
-        )}
-      </ul>
+            </>
+          ) : (
+            <p>{post.content}</p>
+          )}
+
+          {post.image && (
+            <img
+                src={post.image} 
+              alt="Post image"
+              className="mt-4 max-h-48 object-cover rounded-md"
+            />
+          )}
+
+          <p>
+            <strong>Author Email:</strong> {post.author.email}
+          </p>
+          <p>
+            <strong>Created At:</strong>{' '}
+            {new Date(post.createdAt).toLocaleString()}
+          </p>
+
+          <div className="flex items-center space-x-3 mt-4">
+            <span onClick={() => likePost(post._id)}>
+              {post.likes ? post.likes.length : 0} Likes
+            </span>
+          </div>
+
+          {(post.author._id === userId || isAdmin) && (
+            <div className="flex space-x-4 mt-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+              <button
+                onClick={() => deletePost(post._id)}
+                className="text-white w-[100px] h-[40px] bg-red-500 rounded-[20px] hover:bg-red-600"
+              >
+                X
+              </button>
+              <button
+                onClick={() => editPost(post)}
+                className="text-white w-[100px] h-[40px] bg-blue-500 rounded-[20px] hover:bg-blue-600 hover:underline"
+              >
+                Edit
+              </button>
+            </div>
+          )}
+        </div>
+      </li>
+    ))
+  ) : (
+    <li className="text-center text-gray-500">No posts available.</li>
+  )}
+</ul>
     </div>
   );
 }
