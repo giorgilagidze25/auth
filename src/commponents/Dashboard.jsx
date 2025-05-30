@@ -3,6 +3,7 @@ import Cookies from 'js-cookie';
 import { Link, useNavigate } from 'react-router-dom';
 import PostForm from './PostForm';
 import { toast } from 'react-toastify';
+import { ThumbsUp, ThumbsDown } from 'lucide-react';
 
 export default function Dashboard() {
   const [posts, setPosts] = useState([]);
@@ -53,7 +54,6 @@ export default function Dashboard() {
 
     if (res.ok) {
       fetchPosts(); 
-      toast.success('Liked the post!');
     } else {
       toast.error('Failed to like post.');
     }
@@ -184,6 +184,54 @@ const addPost = async (content, imageFile) => {
   setIsAdmin(decodedToken.role === 'admin');
 }, []);
 
+
+const dislikePost = async (postId) => {
+  const token = Cookies.get('token');
+  const res = await fetch(`https://reschoolexpres.vercel.app/posts/${postId}/dislike`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (res.ok) {
+    fetchPosts();
+  } else {
+    toast.error('Failed to dislike post.');
+  }
+};
+
+
+const fetchSortedPosts = async (sortType) => {
+  const token = Cookies.get('token');
+
+  let url = 'https://reschoolexpres.vercel.app/posts'; 
+  if (sortType === 'most') {
+    url += '?type=most';
+  } else if (sortType === 'least') {
+    url += '?type=least';
+  }
+
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      setPosts(data);
+    } else {
+      toast.error('Failed to fetch sorted posts.');
+    }
+  } catch (error) {
+    console.error(error);
+    toast.error('Something went wrong while sorting posts.');
+  }
+};
+
   return (
     <div className="min-h-screen bg-gray-100 p-8">
       <div className="flex justify-between items-center mb-6">
@@ -233,6 +281,16 @@ const addPost = async (content, imageFile) => {
           >
             Search
           </button>
+
+
+            <select
+      onChange={(e) => fetchSortedPosts(e.target.value)}
+      className="border border-gray-300 p-2 rounded-md mt-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+    >
+      <option value="">Sort by</option>
+      <option value="most">Most Liked</option>
+      <option value="least">Most Disliked</option>
+    </select>
         </div>
       </div>
 
@@ -319,11 +377,18 @@ const addPost = async (content, imageFile) => {
             {new Date(post.createdAt).toLocaleString()}
           </p>
 
-          <div className="flex items-center space-x-3 mt-4">
-            <span onClick={() => likePost(post._id)}>
-              {post.likes ? post.likes.length : 0} Likes
-            </span>
-          </div>
+<div className="flex items-center space-x-3 mt-4">
+  <span onClick={() => likePost(post._id)} className="cursor-pointer flex items-center space-x-1">
+    <ThumbsUp size={18} />
+    <span>{post.likes ? post.likes.length : 0}</span>
+  </span>
+  <span onClick={() => dislikePost(post._id)} className="cursor-pointer  flex items-center space-x-1">
+    <ThumbsDown size={18} />
+    <span>{post.dislikes ? post.dislikes.length : 0}</span>
+  </span>
+</div>
+
+
 
           {(post.author._id === userId || isAdmin) && (
             <div className="flex space-x-4 mt-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
