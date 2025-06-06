@@ -14,8 +14,40 @@ export default function Dashboard() {
   const [searchResult, setSearchResult] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [user, setUser] = useState(null);
-  
+  const [commentTexts, setCommentTexts] = useState({});
   const navigate = useNavigate();
+
+
+  
+  const handleCommentSubmit = async (postId) => {
+  const token = Cookies.get('token');
+  const commentText = commentTexts[postId];
+
+  if (!commentText) {
+    toast.error("Comment can't be empty");
+    return;
+  }
+
+  try {
+    const res = await fetch(`https://reschoolexpres.vercel.app/posts/${postId}/comment`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ text: commentText }),
+    });
+
+    if (!res.ok) throw new Error('Failed to post comment');
+    toast.success('Comment added');
+    setCommentTexts(prev => ({ ...prev, [postId]: '' }));
+    fetchPosts(); 
+  } catch (err) {
+    toast.error(err.message);
+  }
+};
+ 
+
 
   const fetchPosts = async () => {
     const token = Cookies.get('token');
@@ -370,7 +402,7 @@ const fetchSortedPosts = async (sortType) => {
           )}
 
           <p>
-            <strong>Author Email:</strong> {post.author.email}
+            <strong>Author id:</strong> {post.author}
           </p>
           <p>
             <strong>Created At:</strong>{' '}
@@ -389,23 +421,55 @@ const fetchSortedPosts = async (sortType) => {
 </div>
 
 
+{(post.author._id === userId || isAdmin) && (
+  <>
+    <div className="flex space-x-4 mt-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+      <button
+        onClick={() => deletePost(post._id)}
+        className="text-white w-[100px] h-[40px] bg-red-500 rounded-[20px] hover:bg-red-600"
+      >
+        X
+      </button>
+      <button
+        onClick={() => editPost(post)}
+        className="text-white w-[100px] h-[40px] bg-blue-500 rounded-[20px] hover:bg-blue-600 hover:underline"
+      >
+        Edit
+      </button>
+    </div>
 
-          {(post.author._id === userId || isAdmin) && (
-            <div className="flex space-x-4 mt-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-              <button
-                onClick={() => deletePost(post._id)}
-                className="text-white w-[100px] h-[40px] bg-red-500 rounded-[20px] hover:bg-red-600"
-              >
-                X
-              </button>
-              <button
-                onClick={() => editPost(post)}
-                className="text-white w-[100px] h-[40px] bg-blue-500 rounded-[20px] hover:bg-blue-600 hover:underline"
-              >
-                Edit
-              </button>
-            </div>
-          )}
+    <div className="mt-4">
+      <textarea
+        className="w-full border border-gray-300 rounded-md p-2"
+        placeholder="Write a comment..."
+        value={commentTexts[post._id] || ''}
+        onChange={(e) =>
+          setCommentTexts((prev) => ({ ...prev, [post._id]: e.target.value }))
+        }
+      />
+      <button
+        onClick={() => handleCommentSubmit(post._id)}
+        className="mt-2 bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition"
+      >
+        Submit Comment
+      </button>
+    </div>
+  </>
+)}
+
+{post.comments && post.comments.length > 0 && (
+  <div className="mt-4 bg-white p-3 rounded shadow">
+    <h4 className="font-semibold mb-2">Comments:</h4>
+    {post.comments.map((comment) => (
+      <div key={comment._id} className="border-b py-2">
+        <p className="text-gray-800">{comment.text}</p>
+<p className="text-sm text-gray-500">by {comment.author || 'Unknown'}</p>
+
+      </div>
+    ))}
+  </div>
+)}
+
         </div>
       </li>
     ))
